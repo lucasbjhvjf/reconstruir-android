@@ -27,9 +27,9 @@ jobs:
           gradle-version: '9.1.0'
           cache-provider: basic
 
-      - name: Generate temporary release keystore
+      - name: Generate long-lived test keystore
         run: |
-          keytool -genkeypair -v             -keystore reconstruir-test.jks             -storepass changeit             -keypass changeit             -alias reconstruir             -keyalg RSA             -keysize 2048             -validity 3650             -dname "CN=Reconstruir Test, O=Reconstruir, C=BR"
+          keytool -genkeypair -v             -keystore reconstruir-test.jks             -storepass changeit             -keypass changeit             -alias reconstruir             -keyalg RSA             -keysize 2048             -validity 7300             -startdate "01/01/2020 00:00:00"             -dname "CN=Reconstruir Test, O=Reconstruir, C=BR"
 
       - name: Build signed release APK
         run: |
@@ -44,7 +44,7 @@ jobs:
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: reconstruir-android-release
+          name: reconstruir-android-v17
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
