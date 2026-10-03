@@ -2,19 +2,23 @@ plugins { id 'com.android.application' }
 
 android {
     namespace 'com.reconstruir.app'
-    compileSdk 34
+    compileSdk 33
 
     defaultConfig {
-        applicationId 'com.reconstruir.app.beta'
-        minSdk 23
-        targetSdk 34
-        versionCode 14
-        versionName '0.14.0'
+        applicationId 'com.reconstruir.mobile'
+        minSdk 21
+        targetSdk 33
+        versionCode 15
+        versionName '0.15.0'
     }
 
     buildTypes {
-        debug { applicationIdSuffix '.debug' }
-        release { minifyEnabled false }
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+        }
     }
 
     compileOptions {
