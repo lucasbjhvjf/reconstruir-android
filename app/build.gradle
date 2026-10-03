@@ -5,20 +5,16 @@ android {
     compileSdk 33
 
     defaultConfig {
-        applicationId 'com.reconstruir.mobile'
+        applicationId 'com.reconstruir.installtest'
         minSdk 21
         targetSdk 33
-        versionCode 15
-        versionName '0.15.0'
+        versionCode 17
+        versionName '0.17.0'
     }
 
     buildTypes {
-        debug {
-            minifyEnabled false
-        }
-        release {
-            minifyEnabled false
-        }
+        debug { minifyEnabled false }
+        release { minifyEnabled false }
     }
 
     compileOptions {
