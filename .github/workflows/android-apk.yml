@@ -25,15 +25,27 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.1.0'
-          cache-provider: basic
+          cache-disabled: true
 
-      - name: Generate long-lived test keystore
+      - name: Generate test release keystore
         run: |
-          keytool -genkeypair -v             -keystore reconstruir-test.jks             -storepass changeit             -keypass changeit             -alias reconstruir             -keyalg RSA             -keysize 2048             -validity 7300             -startdate "01/01/2020 00:00:00"             -dname "CN=Reconstruir Test, O=Reconstruir, C=BR"
+          keytool -genkeypair -v \
+            -keystore reconstruir-test.jks \
+            -storepass changeit \
+            -keypass changeit \
+            -alias reconstruir \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 7300 \
+            -dname "CN=Reconstruir Test, O=Reconstruir, C=BR"
 
       - name: Build signed release APK
         run: |
-          gradle --no-daemon assembleRelease             -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/reconstruir-test.jks"             -Pandroid.injected.signing.store.password=changeit             -Pandroid.injected.signing.key.alias=reconstruir             -Pandroid.injected.signing.key.password=changeit
+          gradle --no-daemon assembleRelease \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/reconstruir-test.jks" \
+            -Pandroid.injected.signing.store.password=changeit \
+            -Pandroid.injected.signing.key.alias=reconstruir \
+            -Pandroid.injected.signing.key.password=changeit
 
       - name: Verify APK exists
         run: test -s app/build/outputs/apk/release/app-release.apk
