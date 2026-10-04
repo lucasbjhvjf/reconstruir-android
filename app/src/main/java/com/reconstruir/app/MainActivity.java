@@ -164,6 +164,167 @@ public class MainActivity extends Activity {
         setContentView(shell);
     }
 
+    private void showOnboard(){
+        LinearLayout screen=new LinearLayout(this);
+        screen.setOrientation(LinearLayout.VERTICAL);
+        screen.setPadding(18,28,18,28);
+        screen.setBackgroundColor(BG);
+
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout content=new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout intro=card();
+        intro.addView(tv("Bem-vindo ao Reconstruir",28,INK));
+        intro.addView(tv("Você não precisa saber por onde começar. Vamos descobrir o que importa para você e, a partir disso, caminhar um passo de cada vez.",16,MUTED));
+        EditText name=new EditText(this);
+        name.setHint("Como podemos chamar você?");
+        content.addView(intro);
+        intro.addView(name);
+
+        ArrayList<CheckBox> areaBoxes=new ArrayList<>();
+        LinearLayout areas=card();
+        areas.addView(tv("1. Onde você quer melhorar?",22,INK));
+        areas.addView(tv("Marque todas as áreas que fazem sentido para sua vida hoje.",14,MUTED));
+        for(String item:lifeAreas){
+            CheckBox cb=new CheckBox(this);
+            cb.setText(item);
+            cb.setTextSize(16);
+            cb.setTextColor(INK);
+            areaBoxes.add(cb);
+            areas.addView(cb);
+        }
+        EditText areaOther=new EditText(this);
+        areaOther.setHint("Outra área…");
+        areas.addView(areaOther);
+        content.addView(areas);
+
+        ArrayList<CheckBox> roleBoxes=new ArrayList<>();
+        LinearLayout rolesCard=card();
+        rolesCard.addView(tv("2. Que tipo de pessoa você quer ser?",22,INK));
+        rolesCard.addView(tv("Escolha os papéis, relacionamentos e compromissos que deseja fortalecer.",14,MUTED));
+        for(String item:roles){
+            CheckBox cb=new CheckBox(this);
+            cb.setText(item);
+            cb.setTextSize(16);
+            cb.setTextColor(INK);
+            roleBoxes.add(cb);
+            rolesCard.addView(cb);
+        }
+        EditText roleOther=new EditText(this);
+        roleOther.setHint("Outro papel ou objetivo…");
+        rolesCard.addView(roleOther);
+        content.addView(rolesCard);
+
+        ArrayList<CheckBox> qualityBoxes=new ArrayList<>();
+        LinearLayout qualityCard=card();
+        qualityCard.addView(tv("3. Quais qualidades você quer desenvolver?",22,INK));
+        qualityCard.addView(tv("Estas escolhas servem como direção, não como julgamento sobre quem você é.",14,MUTED));
+        for(String item:qualities){
+            CheckBox cb=new CheckBox(this);
+            cb.setText(item);
+            cb.setTextSize(16);
+            cb.setTextColor(INK);
+            qualityBoxes.add(cb);
+            qualityCard.addView(cb);
+        }
+        EditText qualityOther=new EditText(this);
+        qualityOther.setHint("Outra qualidade…");
+        qualityCard.addView(qualityOther);
+        content.addView(qualityCard);
+
+        scroll.addView(content);
+        screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+
+        Button begin=btn("Começar minha reconstrução");
+        begin.setOnClickListener(v->{
+            String n=name.getText().toString().trim();
+            if(n.isEmpty()) n="Você";
+            prefs.edit()
+                .putString("name",n)
+                .putString("selected_areas",joinChecks(areaBoxes,areaOther))
+                .putString("selected_roles",joinChecks(roleBoxes,roleOther))
+                .putString("selected_qualities",joinChecks(qualityBoxes,qualityOther))
+                .putBoolean("onboard",true)
+                .putBoolean("onboard_v2",true)
+                .putInt("guide_step",0)
+                .apply();
+            showHome();
+        });
+        screen.addView(begin);
+        setContentView(screen);
+    }
+
+    private String joinChecks(ArrayList<CheckBox> boxes, EditText other){
+        StringBuilder out=new StringBuilder();
+        for(CheckBox cb:boxes){
+            if(cb.isChecked()){
+                if(out.length()>0) out.append("|");
+                out.append(cb.getText().toString().replace("|","/"));
+            }
+        }
+        String extra=other.getText().toString().trim();
+        if(!extra.isEmpty()){
+            if(out.length()>0) out.append("|");
+            out.append(extra.replace("|","/"));
+        }
+        return out.toString();
+    }
+
+    private static class GuideStep {
+        String title,prompt,action,minimum;
+        GuideStep(String title,String prompt,String action,String minimum){
+            this.title=title; this.prompt=prompt; this.action=action; this.minimum=minimum;
+        }
+    }
+
+    private GuideStep[] guideSteps(){
+        return new GuideStep[]{
+            new GuideStep(
+                "Cuidar do básico",
+                "Agora vamos cuidar do que sustenta o resto. Primeiro, beba um copo de água e faça sua higiene básica.",
+                "Beber um copo de água e cuidar da higiene.",
+                "Só beba alguns goles de água."
+            ),
+            new GuideStep(
+                "Organizar um pequeno espaço",
+                "Quando tudo parece confuso, não tente organizar a vida inteira. Vamos organizar apenas um pequeno ponto ao seu redor.",
+                "Arrumar por 5 minutos um único lugar.",
+                "Recolha apenas 3 coisas."
+            ),
+            new GuideStep(
+                "Escolher uma responsabilidade",
+                "Qual é a única coisa que realmente precisa avançar hoje? Escolha uma responsabilidade principal. Eu não vou colocar uma lista enorme sobre você.",
+                "Escolher uma responsabilidade e escrever o primeiro passo.",
+                "Escreva somente o primeiro passo."
+            ),
+            new GuideStep(
+                "Começar sem esperar vontade",
+                "Você não precisa estar motivado para começar. Vamos tornar a ação pequena o suficiente para caber no momento.",
+                "Trabalhar nessa responsabilidade por 5 a 15 minutos.",
+                "Faça apenas 2 minutos."
+            ),
+            new GuideStep(
+                "Cuidar do corpo",
+                "Agora faça uma ação simples que ajude seu corpo e sua clareza: caminhar, alongar, tomar banho ou descansar conscientemente.",
+                "Fazer uma ação de cuidado físico.",
+                "Levante e caminhe por 2 minutos."
+            ),
+            new GuideStep(
+                "Fortalecer um relacionamento",
+                "Reconstrução também acontece nas relações. Escolha uma pessoa importante e faça um contato saudável e respeitoso.",
+                "Enviar uma mensagem ou fazer uma ligação curta.",
+                "Envie apenas um “Como você está?”"
+            ),
+            new GuideStep(
+                "Revisar o dia",
+                "Antes de encerrar, vamos aprender com o dia. O objetivo não é culpa; é perceber o que funcionou e qual é o próximo passo.",
+                "Escrever uma coisa que funcionou, uma que não funcionou e o próximo passo.",
+                "Escreva apenas uma frase."
+            )
+        };
+    }
+
     private void showHome() {
         if(!prefs.getBoolean("onboard",false) || !prefs.getBoolean("onboard_v2",false)){
             showOnboard();
