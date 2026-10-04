@@ -169,6 +169,10 @@ public class MainActivity extends Activity {
             showOnboard();
             return;
         }
+        String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        if(!todayKey.equals(prefs.getString("guide_day",""))){
+            prefs.edit().putString("guide_day",todayKey).putInt("guide_step",0).apply();
+        }
         base("Hoje");
 
         int step = prefs.getInt("guide_step",0);
@@ -298,7 +302,11 @@ public class MainActivity extends Activity {
         addScale(c,"Sono","sleep");
         addScale(c,"Humor","mood");
         Button save=btn("Salvar check-in");
-        save.setOnClickListener(v->{prefs.edit().putInt("checks",prefs.getInt("checks",0)+1).apply();showHome();});
+        save.setOnClickListener(v->{
+            int next = Math.max(1, prefs.getInt("guide_step",0)+1);
+            prefs.edit().putInt("checks",prefs.getInt("checks",0)+1).putInt("guide_step",next).apply();
+            showHome();
+        });
         c.addView(save);
         root.addView(c,0);
     }
