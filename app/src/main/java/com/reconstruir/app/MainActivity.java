@@ -170,146 +170,123 @@ public class MainActivity extends Activity {
             return;
         }
         base("Hoje");
-        LinearLayout h=card();
-        h.addView(tv(new SimpleDateFormat("EEEE, dd MMMM", Locale.forLanguageTag("pt-BR")).format(new Date()),13,PRIMARY));
-        h.addView(tv("Um passo de cada vez. Uma vida de cada vez.",27,INK));
-        h.addView(tv("Olá, "+prefs.getString("name","")+" · Fase "+phase()+".",16,MUTED));
-        Button check=btn("Fazer check-in");
-        check.setOnClickListener(v->showCheckin(h));
-        h.addView(check);
-        root.addView(h);
-        addTaskCard(1,"Cuidar do essencial de hoje","Escolha uma ação pequena e controlável.",10);
-        addTaskCard(2,"Avançar uma pendência importante","Reduza a tarefa até ela caber no momento.",15);
-        addTaskCard(3,"Fazer algo que fortaleça sua rotina","Pouco, mas feito, vale mais que um plano impossível.",15);
-    }
 
-    private void showOnboard(){
-        LinearLayout r=new LinearLayout(this);
-        r.setOrientation(LinearLayout.VERTICAL);
-        r.setPadding(22,38,22,28);
-        r.setBackgroundColor(BG);
+        int step = prefs.getInt("guide_step",0);
+        LinearLayout hero = card();
+        hero.addView(tv(new SimpleDateFormat("EEEE, dd MMMM", Locale.forLanguageTag("pt-BR")).format(new Date()),13,PRIMARY));
+        hero.addView(tv("Hoje você não precisa resolver sua vida.",25,INK));
+        hero.addView(tv("O Reconstruir vai te dizer apenas o que fazer agora. Um passo por vez.",16,MUTED));
+        hero.addView(tv("Olá, "+prefs.getString("name","")+" · Fase "+phase()+".",15,MUTED));
+        root.addView(hero);
 
-        LinearLayout c=card();
-        c.addView(tv("R",42,PRIMARY));
-        c.addView(tv("Reconstruir",30,INK));
-        c.addView(tv("Um espaço para transformar intenção em próximos passos possíveis.",18,MUTED));
-
-        EditText e=new EditText(this);
-        e.setHint("Como podemos chamar você?");
-        e.setText(prefs.getString("name",""));
-        c.addView(e);
-
-        TextView intro=tv("Antes de começar, vamos entender o que importa para você. Você pode marcar quantas opções quiser e adicionar as suas.",16,INK);
-        c.addView(intro);
-
-        Button start=btn("Continuar");
-        start.setOnClickListener(v->{
-            String name=e.getText().toString().trim();
-            if(name.isEmpty()) name="Você";
-            prefs.edit().putString("name",name).apply();
-            showOnboardGoals();
-        });
-        c.addView(start);
-        r.addView(c);
-        setContentView(r);
-    }
-
-    private CheckBox choice(String text, String selectedSetKey) {
-        CheckBox cb = new CheckBox(this);
-        cb.setText(text);
-        cb.setTextSize(16);
-        cb.setTextColor(INK);
-        cb.setPadding(4,8,4,8);
-        cb.setBackgroundColor(SOFT);
-        cb.setChecked(hasSelection(selectedSetKey, text));
-        return cb;
-    }
-
-    private boolean hasSelection(String key, String value) {
-        String current = prefs.getString(key,"");
-        for(String s: current.split("\\|")) if(s.trim().equals(value)) return true;
-        return false;
-    }
-
-    private void saveSelections(String key, ArrayList<CheckBox> boxes, EditText custom) {
-        ArrayList<String> values = new ArrayList<>();
-        for(CheckBox cb: boxes) if(cb.isChecked()) values.add(cb.getText().toString());
-        if(custom != null){
-            String extra = custom.getText().toString().trim();
-            if(!extra.isEmpty()) values.add(extra);
+        if(step >= guideSteps().length){
+            LinearLayout done = card();
+            done.addView(tv("Você terminou o roteiro essencial de hoje.",22,INK));
+            done.addView(tv("Agora pare, respire e observe o que mudou. Amanhã começamos de novo, sem culpa.",15,MUTED));
+            Button restart=btn("Recomeçar o guia");
+            restart.setOnClickListener(v->{prefs.edit().putInt("guide_step",0).apply(); showHome();});
+            done.addView(restart);
+            root.addView(done);
+            return;
         }
-        StringBuilder out = new StringBuilder();
-        for(String v:values){ if(out.length()>0) out.append("|"); out.append(v.replace("|","/")); }
-        prefs.edit().putString(key,out.toString()).apply();
+
+        GuideStep current = guideSteps()[step];
+        LinearLayout guide = card();
+        guide.addView(tv("PASSO "+(step+1)+" DE "+guideSteps().length,13,PRIMARY));
+        guide.addView(tv(current.title,24,INK));
+        guide.addView(tv(current.description,16,MUTED));
+        if(current.minimum != null){
+            guide.addView(tv("Se estiver sem forças: "+current.minimum,14,MUTED));
+        }
+        Button action = btn(current.action);
+        action.setOnClickListener(v->completeGuideStep(step));
+        guide.addView(action);
+
+        Button help = btn("Estou travado. Mostrar uma versão ainda menor");
+        help.setTextColor(PRIMARY);
+        help.setBackgroundColor(SOFT);
+        help.setOnClickListener(v->showMinimumForStep(current));
+        guide.addView(help);
+
+        root.addView(guide);
+
+        LinearLayout rule = card();
+        rule.addView(tv("Regra do Reconstruir",18,INK));
+        rule.addView(tv("Não procure fazer tudo. Faça apenas o passo que está na tela. Depois, o próximo aparece.",15,MUTED));
+        root.addView(rule);
     }
 
-    private void sectionTitle(LinearLayout c, String title, String subtitle) {
-        c.addView(tv(title,22,INK));
-        c.addView(tv(subtitle,14,MUTED));
+    private static class GuideStep {
+        String title, description, action, minimum;
+        GuideStep(String title,String description,String action,String minimum){
+            this.title=title; this.description=description; this.action=action; this.minimum=minimum;
+        }
     }
 
-    private void showOnboardGoals(){
-        LinearLayout r=new LinearLayout(this);
-        r.setOrientation(LinearLayout.VERTICAL);
-        r.setPadding(22,28,22,28);
-        r.setBackgroundColor(BG);
+    private GuideStep[] guideSteps(){
+        return new GuideStep[]{
+                new GuideStep(
+                        "Acordar para o dia",
+                        "Pare por um minuto. Faça o check-in de energia, estresse, sono e humor. O objetivo não é se julgar; é descobrir de que nível de esforço você precisa hoje.",
+                        "Fazer meu check-in",
+                        "Escolha apenas a sua energia de 1 a 5."
+                ),
+                new GuideStep(
+                        "Cuidar do básico",
+                        "Beba água, vá ao banheiro e cuide da higiene básica. Depois, coma algo adequado ao seu momento. O corpo precisa de combustível antes de grandes decisões.",
+                        "Marcar o básico como feito",
+                        "Faça só uma destas coisas agora."
+                ),
+                new GuideStep(
+                        "Organizar o ambiente",
+                        "Escolha um pequeno ponto que esteja atrapalhando sua mente: cama, mesa, louça, roupa ou lixo. Faça apenas 5 minutos.",
+                        "Fazer 5 minutos",
+                        "Recolha apenas 3 coisas."
+                ),
+                new GuideStep(
+                        "Escolher a responsabilidade principal",
+                        "Existe algo que realmente precisa avançar hoje? Escolha uma única responsabilidade importante. O Reconstruir não vai colocar dez tarefas sobre você.",
+                        "Escolher 1 responsabilidade",
+                        "Escreva apenas o primeiro passo dela."
+                ),
+                new GuideStep(
+                        "Fazer o próximo passo",
+                        "Execute a responsabilidade escolhida por um período curto e possível. Constância vale mais do que um esforço heroico que você não consegue sustentar.",
+                        "Começar agora",
+                        "Faça somente 5 minutos."
+                ),
+                new GuideStep(
+                        "Fortalecer corpo e mente",
+                        "Faça uma ação simples que ajude seu corpo e sua clareza: caminhar, alongar, tomar banho, respirar alguns minutos ou descansar conscientemente.",
+                        "Fazer uma ação de cuidado",
+                        "Levante e caminhe por 2 minutos."
+                ),
+                new GuideStep(
+                        "Não se isolar",
+                        "Se houver alguém seguro e importante para você, dê um pequeno sinal de presença: uma mensagem respeitosa, uma ligação curta ou uma conversa de alguns minutos.",
+                        "Fazer um contato saudável",
+                        "Envie uma mensagem simples: “Estou pensando em você.”"
+                ),
+                new GuideStep(
+                        "Fechar o dia",
+                        "Pare e responda: o que funcionou, o que não funcionou e qual é o próximo passo de amanhã? O objetivo é aprender, não se condenar.",
+                        "Fazer minha reflexão",
+                        "Escreva apenas uma frase sobre o dia."
+                )
+        };
+    }
 
-        ScrollView scroll = new ScrollView(this);
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
+    private void completeGuideStep(int step){
+        if(step==0){
+            showCheckin(null);
+            return;
+        }
+        prefs.edit().putInt("guide_step",step+1).apply();
+        showHome();
+    }
 
-        LinearLayout intro=card();
-        intro.addView(tv("Comece pelo que realmente importa",25,INK));
-        intro.addView(tv("Não existe resposta certa. Escolha o que faz sentido para a fase da sua vida agora.",15,MUTED));
-        content.addView(intro);
-
-        LinearLayout areaCard=card();
-        sectionTitle(areaCard,"1. Áreas da vida","Em quais áreas você deseja melhorar?");
-        ArrayList<CheckBox> areaBoxes=new ArrayList<>();
-        for(String item:lifeAreas){ CheckBox cb=choice(item,"selected_areas"); areaBoxes.add(cb); areaCard.addView(cb); }
-        EditText areaCustom=new EditText(this);
-        areaCustom.setHint("Outra área que quero melhorar…");
-        areaCustom.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        areaCard.addView(areaCustom);
-        content.addView(areaCard);
-
-        LinearLayout roleCard=card();
-        sectionTitle(roleCard,"2. Pessoas e papéis","Que tipo de pessoa você quer ser nas suas relações?");
-        ArrayList<CheckBox> roleBoxes=new ArrayList<>();
-        for(String item:roles){ CheckBox cb=choice(item,"selected_roles"); roleBoxes.add(cb); roleCard.addView(cb); }
-        EditText roleCustom=new EditText(this);
-        roleCustom.setHint("Outro papel ou relação que quero fortalecer…");
-        roleCustom.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        roleCard.addView(roleCustom);
-        content.addView(roleCard);
-
-        LinearLayout qualityCard=card();
-        sectionTitle(qualityCard,"3. Qualidades e virtudes","Quais qualidades você deseja desenvolver?");
-        ArrayList<CheckBox> qualityBoxes=new ArrayList<>();
-        for(String item:qualities){ CheckBox cb=choice(item,"selected_qualities"); qualityBoxes.add(cb); qualityCard.addView(cb); }
-        EditText qualityCustom=new EditText(this);
-        qualityCustom.setHint("Outra qualidade que quero adquirir…");
-        qualityCustom.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        qualityCard.addView(qualityCustom);
-        content.addView(qualityCard);
-
-        LinearLayout note=card();
-        note.addView(tv("Uma escolha não é um julgamento sobre quem você é. É apenas uma direção para o próximo passo.",16,INK));
-        content.addView(note);
-
-        scroll.addView(content);
-        r.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-
-        Button finish=btn("Salvar minhas escolhas e começar");
-        finish.setOnClickListener(v->{
-            saveSelections("selected_areas",areaBoxes,areaCustom);
-            saveSelections("selected_roles",roleBoxes,roleCustom);
-            saveSelections("selected_qualities",qualityBoxes,qualityCustom);
-            prefs.edit().putBoolean("onboard",true).putBoolean("onboard_v2",true).apply();
-            showHome();
-        });
-        r.addView(finish);
-        setContentView(r);
+    private void showMinimumForStep(GuideStep s){
+        Toast.makeText(this, s.minimum, Toast.LENGTH_LONG).show();
     }
 
     private void showCheckin(View parent){
