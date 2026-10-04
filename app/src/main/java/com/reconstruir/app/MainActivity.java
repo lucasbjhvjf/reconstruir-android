@@ -173,124 +173,100 @@ public class MainActivity extends Activity {
         if(!todayKey.equals(prefs.getString("guide_day",""))){
             prefs.edit().putString("guide_day",todayKey).putInt("guide_step",0).apply();
         }
+        showGuideChat();
+    }
+
+    private TextView bubble(String text, boolean assistant) {
+        TextView v = tv(text, 17, assistant ? INK : PRIMARY);
+        v.setPadding(18,16,18,16);
+        v.setBackgroundColor(assistant ? CARD : SOFT);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1,-2);
+        p.setMargins(14,8,14,8);
+        v.setLayoutParams(p);
+        return v;
+    }
+
+    private void addAssistantMessage(LinearLayout chat, String text) {
+        chat.addView(bubble("Reconstruir · " + text, true));
+    }
+
+    private void addUserMessage(LinearLayout chat, String text) {
+        TextView v=bubble("Você · " + text,false);
+        v.setGravity(Gravity.END);
+        chat.addView(v);
+    }
+
+    private void showGuideChat() {
         base("Hoje");
-
         int step = prefs.getInt("guide_step",0);
-        LinearLayout hero = card();
-        hero.addView(tv(new SimpleDateFormat("EEEE, dd MMMM", Locale.forLanguageTag("pt-BR")).format(new Date()),13,PRIMARY));
-        hero.addView(tv("Hoje você não precisa resolver sua vida.",25,INK));
-        hero.addView(tv("O Reconstruir vai te dizer apenas o que fazer agora. Um passo por vez.",16,MUTED));
-        hero.addView(tv("Olá, "+prefs.getString("name","")+" · Fase "+phase()+".",15,MUTED));
-        root.addView(hero);
+        LinearLayout chat = new LinearLayout(this);
+        chat.setOrientation(LinearLayout.VERTICAL);
 
-        if(step >= guideSteps().length){
-            LinearLayout done = card();
-            done.addView(tv("Você terminou o roteiro essencial de hoje.",22,INK));
-            done.addView(tv("Agora pare, respire e observe o que mudou. Amanhã começamos de novo, sem culpa.",15,MUTED));
-            Button restart=btn("Recomeçar o guia");
-            restart.setOnClickListener(v->{prefs.edit().putInt("guide_step",0).apply(); showHome();});
-            done.addView(restart);
-            root.addView(done);
-            return;
+        addAssistantMessage(chat,
+                "Olá, " + prefs.getString("name","") + ". Vamos fazer o dia juntos. Eu vou te dizer apenas o próximo passo. Você não precisa pensar no resto agora.");
+
+        if(step == 0){
+            addAssistantMessage(chat,
+                    "Antes de começar, como está sua energia hoje? Escolha de 1 a 5. Isso me ajuda a escolher um ritmo possível para você.");
+            LinearLayout scale = new LinearLayout(this);
+            scale.setPadding(14,4,14,12);
+            for(int i=1;i<=5;i++){
+                Button b=btn(String.valueOf(i));
+                final int n=i;
+                b.setOnClickListener(v->{
+                    prefs.edit().putInt("energy",n).putInt("checks",prefs.getInt("checks",0)+1).putInt("guide_step",1).apply();
+                    showGuideChat();
+                });
+                scale.addView(b,new LinearLayout.LayoutParams(0,-2,1));
+            }
+            chat.addView(scale);
+            addAssistantMessage(chat,"Se estiver muito difícil escolher, marque 1. Isso não mede seu valor; apenas nos ajuda a escolher um ritmo.");
+        } else {
+            GuideStep[] steps=guideSteps();
+            int completed=Math.min(step,steps.length);
+            for(int i=1;i<completed;i++){
+                addAssistantMessage(chat,steps[i].title+" — obrigado por seguir comigo.");
+                addUserMessage(chat,"Feito.");
+            }
+
+            if(step >= steps.length){
+                addAssistantMessage(chat,"Terminamos o roteiro essencial de hoje. Você não precisa fazer mais nada agora. Respire, descanse e observe como está.");
+                Button restart=btn("Recomeçar o guia");
+                restart.setOnClickListener(v->{prefs.edit().putInt("guide_step",0).apply(); showGuideChat();});
+                chat.addView(restart);
+            } else {
+                GuideStep current=steps[step];
+                addAssistantMessage(chat,current.prompt);
+                addAssistantMessage(chat,"A ação de agora é: " + current.action);
+
+                Button done=btn("Vou fazer agora");
+                done.setOnClickListener(v->completeGuideStepConversational(step));
+                chat.addView(done);
+
+                Button already=btn("Já fiz");
+                already.setTextColor(PRIMARY);
+                already.setBackgroundColor(SOFT);
+                already.setOnClickListener(v->completeGuideStepConversational(step));
+                chat.addView(already);
+
+                if(current.minimum != null){
+                    Button stuck=btn("Estou travado");
+                    stuck.setTextColor(PRIMARY);
+                    stuck.setBackgroundColor(SOFT);
+                    stuck.setOnClickListener(v->addAssistantMessage(chat,"Tudo bem. Vamos diminuir: " + current.minimum));
+                    chat.addView(stuck);
+                }
+            }
         }
 
-        GuideStep current = guideSteps()[step];
-        LinearLayout guide = card();
-        guide.addView(tv("PASSO "+(step+1)+" DE "+guideSteps().length,13,PRIMARY));
-        guide.addView(tv(current.title,24,INK));
-        guide.addView(tv(current.description,16,MUTED));
-        if(current.minimum != null){
-            guide.addView(tv("Se estiver sem forças: "+current.minimum,14,MUTED));
-        }
-        Button action = btn(current.action);
-        action.setOnClickListener(v->completeGuideStep(step));
-        guide.addView(action);
-
-        Button help = btn("Estou travado. Mostrar uma versão ainda menor");
-        help.setTextColor(PRIMARY);
-        help.setBackgroundColor(SOFT);
-        help.setOnClickListener(v->showMinimumForStep(current));
-        guide.addView(help);
-
-        root.addView(guide);
-
-        LinearLayout rule = card();
-        rule.addView(tv("Regra do Reconstruir",18,INK));
-        rule.addView(tv("Não procure fazer tudo. Faça apenas o passo que está na tela. Depois, o próximo aparece.",15,MUTED));
-        root.addView(rule);
+        ScrollView scroll=new ScrollView(this);
+        scroll.addView(chat);
+        root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
     }
 
-    private static class GuideStep {
-        String title, description, action, minimum;
-        GuideStep(String title,String description,String action,String minimum){
-            this.title=title; this.description=description; this.action=action; this.minimum=minimum;
-        }
-    }
-
-    private GuideStep[] guideSteps(){
-        return new GuideStep[]{
-                new GuideStep(
-                        "Acordar para o dia",
-                        "Pare por um minuto. Faça o check-in de energia, estresse, sono e humor. O objetivo não é se julgar; é descobrir de que nível de esforço você precisa hoje.",
-                        "Fazer meu check-in",
-                        "Escolha apenas a sua energia de 1 a 5."
-                ),
-                new GuideStep(
-                        "Cuidar do básico",
-                        "Beba água, vá ao banheiro e cuide da higiene básica. Depois, coma algo adequado ao seu momento. O corpo precisa de combustível antes de grandes decisões.",
-                        "Marcar o básico como feito",
-                        "Faça só uma destas coisas agora."
-                ),
-                new GuideStep(
-                        "Organizar o ambiente",
-                        "Escolha um pequeno ponto que esteja atrapalhando sua mente: cama, mesa, louça, roupa ou lixo. Faça apenas 5 minutos.",
-                        "Fazer 5 minutos",
-                        "Recolha apenas 3 coisas."
-                ),
-                new GuideStep(
-                        "Escolher a responsabilidade principal",
-                        "Existe algo que realmente precisa avançar hoje? Escolha uma única responsabilidade importante. O Reconstruir não vai colocar dez tarefas sobre você.",
-                        "Escolher 1 responsabilidade",
-                        "Escreva apenas o primeiro passo dela."
-                ),
-                new GuideStep(
-                        "Fazer o próximo passo",
-                        "Execute a responsabilidade escolhida por um período curto e possível. Constância vale mais do que um esforço heroico que você não consegue sustentar.",
-                        "Começar agora",
-                        "Faça somente 5 minutos."
-                ),
-                new GuideStep(
-                        "Fortalecer corpo e mente",
-                        "Faça uma ação simples que ajude seu corpo e sua clareza: caminhar, alongar, tomar banho, respirar alguns minutos ou descansar conscientemente.",
-                        "Fazer uma ação de cuidado",
-                        "Levante e caminhe por 2 minutos."
-                ),
-                new GuideStep(
-                        "Não se isolar",
-                        "Se houver alguém seguro e importante para você, dê um pequeno sinal de presença: uma mensagem respeitosa, uma ligação curta ou uma conversa de alguns minutos.",
-                        "Fazer um contato saudável",
-                        "Envie uma mensagem simples: “Estou pensando em você.”"
-                ),
-                new GuideStep(
-                        "Fechar o dia",
-                        "Pare e responda: o que funcionou, o que não funcionou e qual é o próximo passo de amanhã? O objetivo é aprender, não se condenar.",
-                        "Fazer minha reflexão",
-                        "Escreva apenas uma frase sobre o dia."
-                )
-        };
-    }
-
-    private void completeGuideStep(int step){
-        if(step==0){
-            showCheckin(null);
-            return;
-        }
+    private void completeGuideStepConversational(int step) {
         prefs.edit().putInt("guide_step",step+1).apply();
-        showHome();
-    }
-
-    private void showMinimumForStep(GuideStep s){
-        Toast.makeText(this, s.minimum, Toast.LENGTH_LONG).show();
+        showGuideChat();
     }
 
     private void showCheckin(View parent){
