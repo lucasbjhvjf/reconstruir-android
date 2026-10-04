@@ -8,8 +8,8 @@ android {
         applicationId 'com.reconstruir.installtest'
         minSdk 21
         targetSdk 33
-        versionCode 17
-        versionName '0.17.0'
+        versionCode 18
+        versionName '0.18.0'
     }
 
     buildTypes {
